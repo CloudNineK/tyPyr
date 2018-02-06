@@ -1,4 +1,5 @@
 import urwid as u
+import random
 
 
 class Prompt(u.Filler):
@@ -7,7 +8,7 @@ class Prompt(u.Filler):
         self.com = ''  # Completed Text
         self.incom = prompt  # Incomplete Text
         self.body = u.Text([('complete', self.com),
-                            ('incomplete', self.incom)], align='center')
+                            ('incomplete', self.incom)])
         self.length = 0
         self.flag = [False, 0]
 
@@ -75,7 +76,9 @@ palette = [
     ('complete', 'light blue', 'default'),
     ('incomplete', 'light red', 'default')]
 
-text = "The quick brown fox jumped over the lazy dog."
+with open('prompts.txt', 'r') as f:
+    text = random.choice(f.readlines()).strip()
+
 prompt = Prompt(text)
 
 div = u.Divider()
