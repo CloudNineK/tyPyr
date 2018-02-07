@@ -1,68 +1,78 @@
 import urwid as u
 import random
 
+# TODO: Add WPM
+
 
 class Prompt(u.Filler):
     def __init__(self, prompt: str):
         self.orig = prompt
         self.com = ''  # Completed Text
+        self.incor = ''
         self.incom = prompt  # Incomplete Text
         self.body = u.Text([('complete', self.com),
                             ('incomplete', self.incom)])
         self.length = 0
         self.flag = [False, 0]
 
-    def update(self):
-        self.body.set_text([('complete', self.com),
-                            ('incomplete', self.incom)])
+    def update(self, flag):
+        if flag:
+            self.body.set_text([('complete', self.com),
+                                ('incorrect', self.incor),
+                                ('incomplete', self.incom)])
+        else:
+            self.body.set_text([('complete', self.com),
+                                ('incomplete', self.incom)])
 
     def process(self, resp):
 
         def add():
-            self.com += self.incom[0]
+            if self.flag[0]:
+                self.incor += self.incom[0]
+            else:
+                self.com += self.incom[0]
+
             self.incom = self.incom[1:]
-            self.update()
+            self.update(self.flag[0])
             self.length += 1
 
         def rem():
-            self.incom = self.com[-1] + self.incom
-            self.com = self.com[:len(self.com) - 1]
-            self.update()
+            if self.flag[0]:
+                self.incom = self.incor[-1] + self.incom
+                self.incor = self.incor[:len(self.incor) - 1]
+            else:
+                self.incom = self.com[-1] + self.incom
+                self.com = self.com[:len(self.com) - 1]
+
+            if len(self.incor) == 0:
+                self.flag = [False, 0]
+            self.update(self.flag[0])
             self.length -= 1
 
         entry = resp[-1]  # Last character entered
         current = self.orig[self.length]  # Next character to check against
-        added = len(resp) > self.length
+        added = len(resp) > self.length  # True if character was added
 
         # Check state for invalid charcater
         if self.flag[0]:
-            if self.length == self.flag[1]:
-                if entry == self.orig[self.flag[1]]:
-                    self.flag = [False, 0]
-                    add()
-
-                # Insert / Delete
-                elif added:
-                    self.length += 1
-                else:
-                    self.length -= 1
 
             # Insert / Delete
-            elif added:
-                self.length += 1
+            if added:
+                add()
             else:
-                self.length -= 1
+                rem()
 
-        # Upon adding a character
+        # Add character
         elif added:
 
             # Upon entry of invalid character: flag the last correct character
             if entry != current and not self.flag[0]:
                 self.flag = [True, self.length]
-                self.length += 1
+                add()
             else:
                 add()
 
+        # Delete character
         else:
             rem()
 
@@ -74,7 +84,8 @@ def exit_on_q(key):
 
 palette = [
     ('complete', 'light blue', 'default'),
-    ('incomplete', 'light red', 'default')]
+    ('incomplete', 'white', 'default'),
+    ('incorrect', 'light red', 'default')]
 
 with open('prompts.txt', 'r') as f:
     text = random.choice(f.readlines()).strip()
@@ -89,7 +100,7 @@ response = u.Edit(('response', ''))
 
 def on_resp_change(resp, newtext):
     prompt.process(newtext)
-    temp.set_text(str(prompt.length) + ' ' + str(prompt.flag[1]) + ' ' + str(prompt.flag[0]) + ' ' + newtext[-1] + ' ' + prompt.orig[prompt.flag[1] - 1])
+    temp.set_text(str(prompt.length) + ' ' + str(prompt.flag[1]) + ' ' + str(prompt.flag[0]) + ' ' + newtext[-1] + ' ' + prompt.orig[prompt.flag[1] - 1] + ' ' + prompt.incor)
 
 
 u.connect_signal(response, 'change', on_resp_change)
