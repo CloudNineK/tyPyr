@@ -2,7 +2,6 @@ import urwid as u
 
 import random
 import datetime
-import threading
 
 # TODO: Add WPM
 
@@ -29,7 +28,6 @@ class Prompt():
         self.wpm = 0
         self.timeStart = None
         self.flag = [False, 0]
-
 
     def update(self, flag):
         if flag:
@@ -110,7 +108,10 @@ def exit_on_q(key):
 palette = [
     ('complete', 'light blue', 'default'),
     ('incomplete', 'white', 'default'),
-    ('incorrect', 'light red', 'default')]
+    ('incorrect', 'light red', 'default'),
+    ('response', 'light magenta', 'default'),
+    ('pg normal', 'dark red', 'dark red'),
+    ('pg complete', 'dark green', 'dark green')]
 
 with open('prompts.txt', 'r') as f:
     text = random.choice(f.readlines()).strip()
@@ -119,6 +120,8 @@ with open('prompts.txt', 'r') as f:
 prompt = Prompt(text)
 div = u.Divider()
 wpm = u.Text("Words Per Minute: ")
+progress = u.ProgressBar('pg normal', 'pg complete', current=0, done=len(text))
+progressText = u.Text("Progress: ")
 
 response = u.Edit(('response', ''))
 
@@ -135,11 +138,19 @@ def on_resp_change(resp, newtext):
     # Update WPM
     wpm.set_text("Words Per Minute: " + prompt.wpm_update())
 
+    # Update progress bar
+    progress.set_completion(len(prompt.com))
+    progressText.set_text("Progress: " + str(progress.get_text()))
+
 
 u.connect_signal(response, 'change', on_resp_change)
 
-pile = u.Pile([prompt.body, div, wpm, response])
-top = u.Filler(u.LineBox(pile))  # topmost widget must be a box widget
+main = u.Pile([prompt.body, div, response])
+lbox = u.LineBox(main)
+
+whole = u.Pile([lbox, div, progressText, progress, div, wpm])
+
+top = u.Filler(whole)  # topmost widget must be a box widget
 
 loop = u.MainLoop(top, palette, unhandled_input=exit_on_q)
 loop.run()
