@@ -1,19 +1,35 @@
 import urwid as u
+
 import random
+import datetime
+import threading
 
 # TODO: Add WPM
 
 
-class Prompt(u.Filler):
+class Prompt():
+    """ Container for text processing"""
+
     def __init__(self, prompt: str):
+        """ Prompt("Prompt Text")
+
+        Args:
+            prompt (str): Original prompt
+        """
         self.orig = prompt
         self.com = ''  # Completed Text
-        self.incor = ''
+        self.incor = ''  # Incorrect Text
         self.incom = prompt  # Incomplete Text
+
         self.body = u.Text([('complete', self.com),
                             ('incomplete', self.incom)])
+
         self.length = 0
+        self.ccount = 0  # Character count
+        self.wpm = 0
+        self.timeStart = None
         self.flag = [False, 0]
+
 
     def update(self, flag):
         if flag:
@@ -23,6 +39,15 @@ class Prompt(u.Filler):
         else:
             self.body.set_text([('complete', self.com),
                                 ('incomplete', self.incom)])
+            self.ccount += 1
+
+    def wpm_update(self):
+        """ (characters typed / 5 characters) / (seconds / 60)"""
+        elapsedSeconds = (datetime.datetime.now() - self.timeStart)
+        elapsedMinutes = (elapsedSeconds.total_seconds()) / 60
+        wpm = int((self.ccount / 5) / elapsedMinutes)
+        self.wpm = wpm
+        return str(self.wpm)
 
     def process(self, resp):
 
@@ -90,23 +115,31 @@ palette = [
 with open('prompts.txt', 'r') as f:
     text = random.choice(f.readlines()).strip()
 
+# Widgets
 prompt = Prompt(text)
-
 div = u.Divider()
-temp = u.Text("test")
+wpm = u.Text("Words Per Minute: ")
 
 response = u.Edit(('response', ''))
 
 
 def on_resp_change(resp, newtext):
+    """ Event signaling a change in the response text box"""
+
     prompt.process(newtext)
-    temp.set_text(str(prompt.length) + ' ' + str(prompt.flag[1]) + ' ' + str(prompt.flag[0]) + ' ' + newtext[-1] + ' ' + prompt.orig[prompt.flag[1] - 1] + ' ' + prompt.incor)
+
+    # Start timing on first input
+    if prompt.timeStart is None:
+        prompt.timeStart = datetime.datetime.now()
+
+    # Update WPM
+    wpm.set_text("Words Per Minute: " + prompt.wpm_update())
 
 
 u.connect_signal(response, 'change', on_resp_change)
 
-pile = u.Pile([prompt.body, div, temp, response])
-top = u.Filler(u.LineBox(pile))  # topmost widget must be a box
+pile = u.Pile([prompt.body, div, wpm, response])
+top = u.Filler(u.LineBox(pile))  # topmost widget must be a box widget
 
 loop = u.MainLoop(top, palette, unhandled_input=exit_on_q)
 loop.run()
